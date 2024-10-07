@@ -11,21 +11,23 @@ resource "aws_security_group" "web-server-sg" {
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "Allow SSH traffic from the world" {
+resource "aws_vpc_security_group_ingress_rule" "allow-ssh" {
   security_group_id = aws_security_group.web-server-sg.id
   ip_protocol       = "tcp"
   from_port         = 22
   to_port           = 22
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
-resource "aws_vpc_security_group_ingress_rule" "Allow HTTP traffic from the world" {
+resource "aws_vpc_security_group_ingress_rule" "allow-http" {
   security_group_id = aws_security_group.web-server-sg.id
   ip_protocol       = "tcp"
   from_port         = 80
+  cidr_ipv4         = "0.0.0.0/0"
   to_port           = 80
 }
 
-resource "aws_vpc_security_group_egress_rule" "Allow Allow Egress traffic from the world" {
+resource "aws_vpc_security_group_egress_rule" "allow-egress" {
   security_group_id = aws_security_group.web-server-sg.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1" # semantically equivalent to all ports
@@ -78,18 +80,28 @@ resource "aws_instance" "web-server-ec2" {
   key_name                    = aws_key_pair.main-key-id.key_name
   vpc_security_group_ids      = [aws_security_group.web-server-sg.id]
   user_data_replace_on_change = true # This need to added!!!!  
-  user_data                   = <<EOF
-#!/bin/bash
-yum -y update
-yum -y install httpd
-myip=$(curl http://checkip.amazonaws.com)
-echo "<h2>WebServer with IP: $myip</h2><br>Build by Terraform!"  >  /var/www/html/index.html
-sudo service httpd start
-chkconfig httpd on
-EOF
+  user_data                   = file("../example-web-httpd.sh")
+  #   user_data                   = <<EOF
+  # #!/bin/bash
+  # yum -y update
+  # yum -y install httpd
+  # myip=$(curl http://checkip.amazonaws.com)
+  # echo "<h2>WebServer with IP: $myip</h2><br>Build by Terraform!"  >  /var/www/html/index.html
+  # sudo service httpd start
+  # chkconfig httpd on
+  # EOF
   tags = {
     Name = "web-server-ec2"
   }
 }
 
+
+resource "aws_secretsmanager_secret" "ec2_private_key_secret" {
+  name = "ec2-key-web-serv"
+}
+
+resource "aws_secretsmanager_secret_version" "ec2_private_key_version" {
+  secret_id     = aws_secretsmanager_secret.ec2_private_key_secret.id
+  secret_string = tls_private_key.generation-key.private_key_pem
+}
 
