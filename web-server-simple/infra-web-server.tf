@@ -39,16 +39,6 @@ resource "aws_key_pair" "main-key-id" {
   public_key = tls_private_key.generation-key.public_key_openssh
 }
 
-output "private_key_pem" {
-  value     = tls_private_key.generation-key.private_key_pem
-  sensitive = true
-}
-
-output "ec2_public_ip" {
-  description = "The public IP of the EC2 instance"
-  value       = aws_instance.web-server-ec2.public_ip
-}
-
 # resource "aws_eip" "elastic-for-web" {
 #   instance = aws_instance.web-server-ec2.id
 #   domain   = "vpc"
@@ -63,11 +53,6 @@ resource "aws_eip" "elastic_ip" {
 resource "aws_eip_association" "eip_assoc" {
   instance_id   = aws_instance.web-server-ec2.id
   allocation_id = aws_eip.elastic_ip.id
-}
-
-output "elastic_ip" {
-  description = "The Elastic IP of the EC2 instance"
-  value       = aws_eip.elastic_ip.public_ip
 }
 
 resource "aws_instance" "web-server-ec2" {
@@ -125,4 +110,5 @@ resource "aws_secretsmanager_secret_version" "ec2_private_key_version" {
   secret_id     = aws_secretsmanager_secret.ec2_private_key_secret.id
   secret_string = tls_private_key.generation-key.private_key_pem
 }
+
 
