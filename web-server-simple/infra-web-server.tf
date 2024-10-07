@@ -80,7 +80,13 @@ resource "aws_instance" "web-server-ec2" {
   key_name                    = aws_key_pair.main-key-id.key_name
   vpc_security_group_ids      = [aws_security_group.web-server-sg.id]
   user_data_replace_on_change = true # This need to added!!!!  
-  user_data                   = file("../example-web-httpd.sh")
+  user_data = templatefile("../template-web-server.tpl", {
+    owner_name    = "Alex Yakov",
+    server_name   = "Web Server",
+    elastic_ip    = aws_eip.elastic_ip.public_ip,
+    owner_email   = "alex@example.com"
+    companys_name = ["Samsung", " Apple", " Google", " Facebook", " Twitter"]
+  })
   #   user_data                   = <<EOF
   # #!/bin/bash
   # yum -y update
@@ -97,7 +103,7 @@ resource "aws_instance" "web-server-ec2" {
 
 
 resource "aws_secretsmanager_secret" "ec2_private_key_secret" {
-  name = "ec2-key-web-serv"
+  name = "ec2-key-web-server"
 }
 
 resource "aws_secretsmanager_secret_version" "ec2_private_key_version" {
