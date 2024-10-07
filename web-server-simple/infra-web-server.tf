@@ -5,27 +5,21 @@ provider "aws" {
 resource "aws_security_group" "web-server-sg" {
   name        = "basic-sg"
   description = "Allow inbound HTTP traffic from the world"
-
+  dynamic "ingress" {
+    for_each = ["80", "22"]
+    content {
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
   tags = {
-    Name = "allow_tls"
+    Name = "Terraform",
+    Ovner = "Alex Yakov"
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "allow-ssh" {
-  security_group_id = aws_security_group.web-server-sg.id
-  ip_protocol       = "tcp"
-  from_port         = 22
-  to_port           = 22
-  cidr_ipv4         = "0.0.0.0/0"
-}
-
-resource "aws_vpc_security_group_ingress_rule" "allow-http" {
-  security_group_id = aws_security_group.web-server-sg.id
-  ip_protocol       = "tcp"
-  from_port         = 80
-  cidr_ipv4         = "0.0.0.0/0"
-  to_port           = 80
-}
 
 resource "aws_vpc_security_group_egress_rule" "allow-egress" {
   security_group_id = aws_security_group.web-server-sg.id
@@ -34,6 +28,7 @@ resource "aws_vpc_security_group_egress_rule" "allow-egress" {
 
 }
 
+#======================TLS and KEY pair SETUP =================
 resource "tls_private_key" "generation-key" {
   algorithm = "RSA"
   rsa_bits  = 4096
@@ -60,6 +55,7 @@ output "ec2_public_ip" {
 
 # }
 
+#====================Elastic IP =================
 resource "aws_eip" "elastic_ip" {
   domain = "vpc"
 }
@@ -85,7 +81,7 @@ resource "aws_instance" "web-server-ec2" {
     server_name   = "Web Server",
     elastic_ip    = aws_eip.elastic_ip.public_ip,
     owner_email   = "alex@example.com"
-    companys_name = ["Samsung", " Apple", " Google", " Facebook", " Twitter"]
+    companys_name = ["Samsung", " Apple", " Google", " Facebook", " Twitter", "XXXXXXXXXXXXXXX"]
   })
   #   user_data                   = <<EOF
   # #!/bin/bash
@@ -96,14 +92,33 @@ resource "aws_instance" "web-server-ec2" {
   # sudo service httpd start
   # chkconfig httpd on
   # EOF
+
   tags = {
     Name = "web-server-ec2"
+  }
+
+  lifecycle {
+    
+              /*prevent_destroy забороняє видаляти ресурс, навіть якщо він є у плані на видалення.
+              Це важливо для критичних ресурсів, які не повинні випадково бути знищені.*/
+    # prevent_destroy = true
+
+              /*ignore_changes ігнорує зміни у вказаних полях під час наступних запусків.
+              Terraform не буде намагатися перезапустити або змінити інстанс через ці зміни.*/
+    # ignore_changes = [ "ami", "instance_type", "user_data" ]
+
+              /*create_before_destroy змушує Terraform спочатку створити новий ресурс, а тільки потім видалити старий.
+              Це корисно для ресурсів, які не повинні зникати під час оновлення (наприклад, важливі сервіси чи інстанси).
+              Terraform створить новий ресурс, перенесе до нього всі залежності, і лише після цього знищить старий ресурс.*/
+    create_before_destroy = true
+    
   }
 }
 
 
+#====================Secret Manager =================
 resource "aws_secretsmanager_secret" "ec2_private_key_secret" {
-  name = "ec2-key-web-server"
+  name = "ec2-key-web-serve1"
 }
 
 resource "aws_secretsmanager_secret_version" "ec2_private_key_version" {
